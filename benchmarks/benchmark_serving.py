@@ -26,10 +26,39 @@ import aiohttp
 import numpy as np
 from transformers import PreTrainedTokenizerBase
 from vllm.transformers_utils.tokenizer import get_tokenizer
+import psycopg2
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+db_config = {
+    "user": "postgres",
+    "password": os.getenv('db-pwd'),
+    "host": os.getenv('db-host'),
+    "port": os.getenv('db-port'),
+    "database": "postgres",
+}
+
+# Connect to the database
+connection = psycopg2.connect(**db_config)
+cursor = connection.cursor()
+
+# Define the table name and column name
+table_name = "test"
+column_name = "text"
 
 # (prompt len, output len, latency)
 REQUEST_LATENCY: List[Tuple[int, int, float]] = []
 
+def insert_into_db(output):
+    try:
+        query = f"INSERT INTO {table_name} ({column_name}) VALUES (%s)"
+        cursor.execute(query, (output,))
+        connection.commit()
+    except Exception as e:
+        print("Error inserting data into the database:", e)
+        connection.rollback()
 
 def sample_requests(
     dataset_path: str,
@@ -103,7 +132,7 @@ async def send_request(
     prompt_len: int,
     output_len: int,
     best_of: int,
-    use_beam_search: bool,
+    use_beam_search: bool
 ) -> None:
     request_start_time = time.time()
 
@@ -136,7 +165,6 @@ async def send_request(
 
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        script_dir = os.path.dirname(os.path.realpath(__file__))
         while True:
             async with session.post(api_url, headers=headers, json=pload) as response:
                 chunks = []
@@ -144,14 +172,10 @@ async def send_request(
                     chunks.append(chunk)
             output = b"".join(chunks).decode("utf-8")
             output = json.loads(output)
-
+            insert_into_db(json.dumps(output))
             # Re-send the request if it failed.
             if "error" not in output:
                 break
-            
-        # Write the output to a file
-        with open(os.path.join(script_dir, 'output.txt'), 'a') as f:
-            f.write(str(output) + '\n')
 
     request_end_time = time.time()
     request_latency = request_end_time - request_start_time
@@ -171,7 +195,7 @@ async def benchmark(
         prompt, prompt_len, output_len = request
         task = asyncio.create_task(send_request(backend, api_url, prompt,
                                                 prompt_len, output_len,
-                                                best_of, use_beam_search))
+                                                best_of, use_beam_search, ))
         tasks.append(task)
     await asyncio.gather(*tasks)
 
