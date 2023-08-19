@@ -1,6 +1,6 @@
 import json
 
-with open('ShareGPT_V3_unfiltered_cleaned_split.json') as f:
+with open('dataset.json') as f:
         dataset = json.load(f)
     # Filter out the conversations with less than 2 turns.
 dataset = [
