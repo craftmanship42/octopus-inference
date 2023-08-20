@@ -22,11 +22,11 @@ install:
 
 # Launch server inside the Docker container
 server:
-	docker exec -it pytorch_bash_container python -m vllm.entrypoints.api_server --model JosephusCheung/Guanaco --swap-space 16 --disable-log-requests --host 127.0.0.1 --port 8080
+	docker exec -it pytorch_bash_container python -m vllm.entrypoints.api_server --model lmsys/vicuna-13b-v1.3 -swap-space 16 --disable-log-requests --host 127.0.0.1 --port 8080
 
 # Trigger benchmarking
 benchmark:
-	docker exec -it pytorch_bash_container python benchmarks/benchmark_serving.py --backend vllm --tokenizer JosephusCheung/Guanaco --dataset dataset.json --request-rate 2 --num-prompts 2 --host 127.0.0.1 --port 8080
+	docker exec -it pytorch_bash_container python benchmarks/benchmark_serving.py --backend vllm --tokenizer lmsys/vicuna-13b-v1.3 --dataset vicuna-dataset.json --request-rate 2 --num-prompts 2 --host 127.0.0.1 --port 8080
 
 # Trigger benchmarking with debugging
 benchmark-debug:
